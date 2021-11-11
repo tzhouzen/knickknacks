@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# WHAT THIS SCRIPT DOES
+# Reads your SSO credentials and creates
+# a regular credentials file so that you can
+# use AWS services from the CLI without having
+# to constantly update your keys.
+
+# PREREQUISITES:
+# - You've setup AWS CLI to work with SSO: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html
+# - You've logged in via JumpCloud
+# - You've set the AWS_PROFILE variable below
+
+AWS_CONFIG_DIR=${HOME}/.aws
+AWS_CLI_DIR=${HOME}/.aws/cli
+SSO_CACHE_FILE=$(/bin/ls ${AWS_CLI_DIR}/cache | xargs -0 | head -n 1)
+SSO_PROFILE=zen-dev-admin # change this appropriately
+
+# Force an AWS CLI auth.
+AWS_PROFILE=${SSO_PROFILE} aws sso login
+# Check that things worked as expected.
+AWS_PROFILE=${SSO_PROFILE} aws configure list
+
+# Read your local SSO cache files to get the needed credentials.
+AWS_ACCESS_KEY_ID="$(cat ${AWS_CLI_DIR}/cache/${SSO_CACHE_FILE} | jq '.Credentials.AccessKeyId' | sed 's/"//g')"
+SECRET_ACCESS_KEY="$(cat ${AWS_CLI_DIR}/cache/${SSO_CACHE_FILE} | jq '.Credentials.SecretAccessKey' | sed 's/"//g')"
+SESSION_TOKEN="$(cat ${AWS_CLI_DIR}/cache/${SSO_CACHE_FILE} | jq '.Credentials.SessionToken' | sed 's/"//g')"
+
+# Write the credentials file.
+echo [default] > ${AWS_CONFIG_DIR}/credentials
+echo aws_access_key_id=${AWS_ACCESS_KEY_ID} >> ${AWS_CONFIG_DIR}/credentials
+echo aws_secret_access_key=${SECRET_ACCESS_KEY} >> ${AWS_CONFIG_DIR}/credentials
+echo aws_session_token=${SESSION_TOKEN} >> ${AWS_CONFIG_DIR}/credentials
+echo '' >> ${AWS_CONFIG_DIR}/credentials
+echo [${SSO_PROFILE}] >> ${AWS_CONFIG_DIR}/credentials
+echo aws_access_key_id=${AWS_ACCESS_KEY_ID} >> ${AWS_CONFIG_DIR}/credentials
+echo aws_secret_access_key=${SECRET_ACCESS_KEY} >> ${AWS_CONFIG_DIR}/credentials
+echo aws_session_token=${SESSION_TOKEN} >> ${AWS_CONFIG_DIR}/credentials
+
+# Pedantry.
+echo
+
+# Make sure it exists.
+cat ${AWS_CONFIG_DIR}/credentials
